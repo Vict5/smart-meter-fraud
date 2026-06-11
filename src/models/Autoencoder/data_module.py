@@ -1,6 +1,9 @@
 # data_module.py
 import torch
-import pytorch_lightning as pl
+try:
+    import pytorch_lightning as pl
+except ImportError:
+    import lightning.pytorch as pl
 from torch.utils.data import DataLoader, Dataset
 
 
