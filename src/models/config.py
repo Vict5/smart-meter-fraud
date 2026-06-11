@@ -9,7 +9,6 @@ class Config:
     # Training parameters
     N_EPOCHS_AE = 600
     N_EPOCHS_DNN = 700
-    LEARNING_RATE = 1e-3
     TEST_SIZE = 0.4
     VAL_SIZE = 0.33
     LEARNING_RATE_AE = 1e-3

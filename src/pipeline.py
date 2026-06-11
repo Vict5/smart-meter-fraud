@@ -55,23 +55,23 @@ class Pipeline:
         """Runs the complete pipeline"""
 
         # 1. Train autoencoders if necessary
-        if len(os.listdir(self.training_orchestrator.ae_models_dir)) != 5:
+        ae_dir = self.training_orchestrator.ae_models_dir
+        if not ae_dir.exists() or len(os.listdir(ae_dir)) != 5:
             self.training_orchestrator.train_all_ae()
 
         # 2. Generate embeddings if necessary
-        if len(os.listdir(self.training_orchestrator.embedding_path)) != 5:
+        emb_dir = self.training_orchestrator.embedding_path
+        if not emb_dir.exists() or len(os.listdir(emb_dir)) != 5:
             print("AE ALREADY TRAINED, creating embeddings...\n")
             self.training_orchestrator.generate_all_embeddings()
 
         # 3. Combine embeddings if necessary
-        if len(os.listdir(self.training_orchestrator.combined_embeddings_path)) != 1:
+        comb_dir = self.training_orchestrator.combined_embeddings_path
+        if not comb_dir.exists() or len(os.listdir(comb_dir)) != 1:
             print("EMBEDDINGS ALREADY CREATED, combining...\n")
             combined_embeddings = self.training_orchestrator.combine_embeddings()
         else:
-            out_dir = os.path.join(
-                self.training_orchestrator.combined_embeddings_path,
-                "combined_embeddings.npy",
-            )
+            out_dir = os.path.join(comb_dir, "combined_embeddings.npy")
             combined_embeddings = np.load(out_dir)
             print("combined embeddings already present")
 
@@ -89,6 +89,7 @@ class Pipeline:
         """Runs the binary classifier"""
         labels_path = os.path.join(self.config.DATASET_PATH, "LABELS.csv")
         labels = pd.read_csv(labels_path, sep="\t", encoding="utf-16")
+        labels = labels.sort_values("Supply_ID").reset_index(drop=True)
         y_true = labels["CLUSTER"].to_numpy()
         y_true = [0 if label == 2 else 1 for label in y_true]
         y_pred = self.binary_classifier.binary_classifier_combined_embeddings(
@@ -235,6 +236,9 @@ class Pipeline:
         X = combined_embeddings
         labels_path = os.path.join(self.config.DATASET_PATH, "LABELS.csv")
         labels = pd.read_csv(labels_path, sep="\t", encoding="utf-16")
+        # Sort by Supply_ID to align row order with combined_embeddings (built via Combiner
+        # which iterates over np.unique(supply_ids), i.e. sorted order).
+        labels = labels.sort_values("Supply_ID").reset_index(drop=True)
         y = labels["CLUSTER"].to_numpy()
         return X, y
 
@@ -290,15 +294,16 @@ class Pipeline:
             "LAVORI",
             "PAROLE_DI_STATO",
         ]
-        embedding_dim = self.config.EMBEDDING_DIM
+        # Each dataset contributes (embedding_dim + 1) features: embedding + reconstruction error
+        features_per_dataset = self.config.EMBEDDING_DIM + 1
 
         # Calculate contributions per dataset (mean of SHAP values)
         dataset_contributions = {}
         total_importance = 0
 
         for i, dataset_name in enumerate(dataset_names):
-            start_idx = i * embedding_dim
-            end_idx = (i + 1) * embedding_dim
+            start_idx = i * features_per_dataset
+            end_idx = (i + 1) * features_per_dataset
             dataset_importance = np.mean(mean_shap_values[start_idx:end_idx])
             dataset_contributions[dataset_name] = dataset_importance
             total_importance += dataset_importance
@@ -363,15 +368,15 @@ class Pipeline:
             "LAVORI",
             "PAROLE_DI_STATO",
         ]
-        embedding_dim = self.config.EMBEDDING_DIM
+        features_per_dataset = self.config.EMBEDDING_DIM + 1
 
         # Calculate contributions per dataset (mean of SHAP values)
         dataset_contributions = {}
         total_importance = 0
 
         for i, dataset_name in enumerate(dataset_names):
-            start_idx = i * embedding_dim
-            end_idx = (i + 1) * embedding_dim
+            start_idx = i * features_per_dataset
+            end_idx = (i + 1) * features_per_dataset
             dataset_importance = np.mean(mean_shap_values[start_idx:end_idx])
             dataset_contributions[dataset_name] = dataset_importance
             total_importance += dataset_importance
@@ -436,15 +441,15 @@ class Pipeline:
             "LAVORI",
             "PAROLE_DI_STATO",
         ]
-        embedding_dim = self.config.EMBEDDING_DIM
+        features_per_dataset = self.config.EMBEDDING_DIM + 1
 
         # Calculate contributions per dataset (mean of SHAP values)
         dataset_contributions = {}
         total_importance = 0
 
         for i, dataset_name in enumerate(dataset_names):
-            start_idx = i * embedding_dim
-            end_idx = (i + 1) * embedding_dim
+            start_idx = i * features_per_dataset
+            end_idx = (i + 1) * features_per_dataset
             dataset_importance = np.mean(mean_shap_values[start_idx:end_idx])
             dataset_contributions[dataset_name] = dataset_importance
             total_importance += dataset_importance
@@ -463,21 +468,29 @@ class Pipeline:
         return dataset_contributions
 
 
-def main():
-    parser = argparse.ArgumentParser(description="Run pipeline with mode")
-    parser.add_argument(
-        "--mode",
-        type=str,
-        choices=["Binary_Classifier", "DNN_Classifier", "XGBoost", "RandomForest"],
-        required=True,
-        help="Select the pipeline mode"
-    )
-    args = parser.parse_args()
+def main(mode=None):
+    """Entry point for both CLI and notebook use.
+
+    From the CLI:   python -m src.pipeline --mode XGBoost
+    From a notebook / Colab:  main(mode="XGBoost")
+    """
+    if mode is None:
+        parser = argparse.ArgumentParser(description="Run pipeline with mode")
+        parser.add_argument(
+            "--mode",
+            type=str,
+            choices=["Binary_Classifier", "DNN_Classifier", "XGBoost", "RandomForest"],
+            required=True,
+            help="Select the pipeline mode",
+        )
+        # parse_known_args ignores Jupyter/Colab's extra sys.argv entries
+        args, _ = parser.parse_known_args()
+        mode = args.mode
 
     pipeline = Pipeline(Config)
     pipeline.set_seed()
+    pipeline.run_pipeline(mode)
 
-    pipeline.run_pipeline(args.mode)
 
 if __name__ == "__main__":
     main()

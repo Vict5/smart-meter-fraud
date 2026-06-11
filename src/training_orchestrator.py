@@ -92,8 +92,11 @@ class TrainingOrchestrator:
             ds_name = file.name
             if ds_name == "LABELS.csv":
                 continue
+            # Always generate embeddings for ALL customers regardless of ONLY_REGULAR.
+            # ONLY_REGULAR controls what the AE was trained on; inference must cover
+            # fraud/anomaly samples too so downstream classifiers can see them.
             embedding_generator.create_embedding(
-                ds_name, self.config.ONLY_REGULAR, self.config.DATASET_PATH
+                ds_name, only_regular=False, dataset_path=self.config.DATASET_PATH
             )
 
     def combine_embeddings(self):
@@ -103,10 +106,7 @@ class TrainingOrchestrator:
         # Determine the number of IDs based on the mode
         labels_path = os.path.join(self.config.DATASET_PATH, "LABELS.csv")
         labels = pd.read_csv(labels_path, sep="\t", encoding="utf-16")
-        if self.config.ONLY_REGULAR:
-            num_ids = len(labels[labels["CLUSTER"] == 2])
-        else:
-            num_ids = len(labels)
+        num_ids = len(labels)
 
         combiner = Combiner(
             self.embedding_path, num_ids=num_ids, embedding_dim=embeddings_dim
@@ -114,6 +114,7 @@ class TrainingOrchestrator:
         combined_embeddings = combiner.concatenate_embeddings()
         print(f"Combined embeddings shape: {combined_embeddings.shape}")
 
+        os.makedirs(self.combined_embeddings_path, exist_ok=True)
         out_dir = os.path.join(self.combined_embeddings_path, "combined_embeddings.npy")
         np.save(out_dir, combined_embeddings)
 

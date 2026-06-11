@@ -21,14 +21,9 @@ class DataProcessor:
         y = [int(seq[1]) for seq in sequences]  # Extract labels
 
         # Check if we should use stratification
-        use_stratify = True
-        if dataset_name and "INTERRUZIONI" in dataset_name.upper():
-            # Check if any class has less than 2 samples
-            from collections import Counter
-
-            class_counts = Counter(y)
-            if any(count < 2 for count in class_counts.values()):
-                use_stratify = False
+        from collections import Counter
+        class_counts = Counter(y)
+        use_stratify = not any(count < 2 for count in class_counts.values())
 
         stratify_param = y if use_stratify else None
 

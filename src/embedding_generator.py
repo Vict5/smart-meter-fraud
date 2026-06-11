@@ -74,6 +74,7 @@ class EmbeddingGenerator:
         print(f"Embeddings with ID and Rec error shape: {embeddings_with_ids.shape}")
         print(embeddings_with_ids[4, :])
 
+        os.makedirs(self.embedding_path, exist_ok=True)
         np.save(
             f"{self.embedding_path}/{ds_name[:-4]}_embeddings.npy", embeddings_with_ids
         )

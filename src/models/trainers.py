@@ -138,6 +138,7 @@ class TrainAutoEncoder:
                 print(f"{epoch:5d} | {train_mae:10.4f} | {val_mae:8.4f} ")
 
         model.load_state_dict(best_model_wts)
+        pathlib.Path(ae_models_dir).mkdir(parents=True, exist_ok=True)
         torch.save(
             {
                 "model_state_dict": model.state_dict(),
@@ -175,26 +176,19 @@ class TrainAutoEncoder:
                 print(f"MAE: {loss.item()} | Label {labels}")
 
     def plot_training_results(self, ds_name, history, reports_dir):
+        n_epochs = len(history["train_mae"])
         fig, ax = plt.subplots()
-        ax.plot(
-            range(Config.N_EPOCHS_AE),
-            history["train_mae"],
-            label="Train MAE",
-            color="blue",
-        )
-        ax.plot(
-            range(Config.N_EPOCHS_AE),
-            history["val_mae"],
-            label="Val MAE",
-            color="orange",
-        )
+        ax.plot(range(n_epochs), history["train_mae"], label="Train MAE", color="blue")
+        ax.plot(range(n_epochs), history["val_mae"], label="Val MAE", color="orange")
         ax.set_title(f"Training and Validation Loss on {ds_name[:-3]}")
         ax.set_xlabel("Epochs")
         ax.set_ylabel("Loss")
         ax.legend()
+        pathlib.Path(reports_dir).mkdir(parents=True, exist_ok=True)
         name_file = pathlib.Path(f"{ds_name[:-4]}_training_losses.jpg")
         out_path = os.path.join(reports_dir, name_file)
         plt.savefig(out_path)
+        plt.close(fig)
 
 
 class TrainDNN:
@@ -326,6 +320,7 @@ class TrainDNN:
         # Save best model state for testing
         self.best_model_state = copy.deepcopy(best_model_wts)
 
+        pathlib.Path(dnn_model_dir).mkdir(parents=True, exist_ok=True)
         torch.save(
             {
                 "model_state_dict": model.state_dict(),
@@ -397,6 +392,7 @@ class TrainXGBoost:
         y_pred_val = xgb_model.predict(self.X_val.numpy())
         recall = compute_minority_weighted_recall(self.y_val, y_pred_val)
 
+        pathlib.Path(xgboost_model_dir).mkdir(parents=True, exist_ok=True)
         out_path = os.path.join(xgboost_model_dir, "fold_" + str(fold) + ".json")
         xgb_model.save_model(out_path)
 

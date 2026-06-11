@@ -55,14 +55,16 @@ class BinaryClassifier:
     def binary_classifier_combined_embeddings(self, combined_embeddings, y_true):
         y_pred = []
         y_score = []
-        # Filter embeddings based on mode if necessary
+        # Calibrate the threshold using only regular customers (when ONLY_REGULAR=True),
+        # because the AE was trained on normal data and that is the reference distribution.
+        # combined_embeddings rows are ordered by sorted Supply_ID (see Combiner), so we
+        # must sort LABELS.csv the same way before building the boolean mask.
         if self.only_regular:
-            # If we're using only regular data, we need to filter here too
             labels_path = os.path.join(self.dataset_path, "LABELS.csv")
             labels = pd.read_csv(labels_path, encoding="utf-16", sep="\t")
-            regular_seq = labels[labels["CLUSTER"] == 2]
-            regular_indices = regular_seq.index.tolist()
-            filtered_embeddings = combined_embeddings[regular_indices]
+            labels_sorted = labels.sort_values("Supply_ID").reset_index(drop=True)
+            regular_mask = labels_sorted["CLUSTER"].values == 2
+            filtered_embeddings = combined_embeddings[regular_mask]
         else:
             filtered_embeddings = combined_embeddings
 
