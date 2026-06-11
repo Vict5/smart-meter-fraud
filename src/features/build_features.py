@@ -367,7 +367,7 @@ class PreprocessDataset:
         pandas_df.to_csv(output_path, index=False, encoding="utf-16", sep="\t")
 
     def preprocess_labels(self):
-        labels_path = os.path.join(DATASET_PATH, "LABELS.csv")
+        labels_path = os.path.join(self.dataset_path, "LABELS.csv")
         output_path = os.path.join("data/processed", "LABELS.csv")
 
         header, lines = read_csv_file(labels_path)
