@@ -96,9 +96,11 @@ class PreprocessDataset:
             consumi_path, schema=schema, separator="\t", encoding="utf-16-le"
         )
 
-        # Drop rows with empty Supply_ID then convert to int
-        df = df.filter(pl.col("Supply_ID") != "")
-        df = df.with_columns([pl.col("Supply_ID").str.slice(6).cast(pl.Int32)])
+        # Slice prefix, cast to int (strict=False turns bad values to null), drop nulls
+        df = df.with_columns([
+            pl.col("Supply_ID").str.slice(6).cast(pl.Int32, strict=False)
+        ])
+        df = df.drop_nulls(subset=["Supply_ID"])
 
         # Replace "" with None in 'val' and convert comma to dot
         df = df.with_columns(
