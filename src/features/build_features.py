@@ -97,7 +97,7 @@ class PreprocessDataset:
         )
 
         # Drop rows with empty Supply_ID then convert to int
-        df = df.filter(pl.col("Supply_ID").str.len_chars() > 0)
+        df = df.filter(pl.col("Supply_ID") != "")
         df = df.with_columns([pl.col("Supply_ID").str.slice(6).cast(pl.Int32)])
 
         # Replace "" with None in 'val' and convert comma to dot
